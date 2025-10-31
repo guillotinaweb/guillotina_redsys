@@ -11,6 +11,7 @@ test_requires = [
     "pytest-cov",
     "pytest-docker-fixtures[pg]>=1.3.0",
     "docker",
+    "aiohttp>=3.0.0,<4.0.0"
 ]
 
 
@@ -21,7 +22,7 @@ setup(
     author="Nil Bacardit Vinyals",
     author_email="n.bacardit@iskra.cat",
     version=open("VERSION").read().strip(),
-    long_description=(open("README.rst").read() + "\n" + open("CHANGELOG.rst").read()),
+    long_description=(open("README.md").read() + "\n" + open("CHANGELOG.rst").read()),
     classifiers=[
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
