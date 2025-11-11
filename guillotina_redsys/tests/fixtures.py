@@ -16,7 +16,12 @@ def base_settings_configurator(settings):
     settings["load_utilities"] = {
         "redsys": {
             "provides": "guillotina_redsys.interfaces.IRedsysUtility",
-            "factory": "guillotina_redsys.utility.RedsysUtility"
+            "factory": "guillotina_redsys.utility.RedsysUtility",
+            "settings": {
+                "merchant_code": os.environ.get("REDSYS_MERCHANT_CODE", "123456789"),
+                "terminal": os.environ.get("REDSYS_TERMINAL", "001"),
+                "secret_key": os.environ.get("REDSYS_SECRET_KEY", "DUMMY_KEY_TERMINAL")
+            }
         }
     }
 

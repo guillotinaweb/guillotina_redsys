@@ -1,7 +1,11 @@
 # pydantic v1
+import json
+import base64
 from decimal import Decimal, ROUND_HALF_UP
 from typing import Dict
+from typing import Literal
 from pydantic import BaseModel, conint, constr, validator
+from guillotina_redsys.utils import compute_redsys_signature
 
 
 class RedsysMerchantParams(BaseModel):
@@ -78,3 +82,32 @@ class RedsysMerchantParams(BaseModel):
     @validator("Ds_Merchant_MerchantCode", "Ds_Merchant_Order", "Ds_Merchant_Terminal", "Ds_Merchant_TransactionType")
     def _strip_spaces(cls, v: str) -> str:
         return v.strip()
+
+
+class RedsysForm(BaseModel):
+    Ds_SignatureVersion: Literal["HMAC_SHA512_V2"] = "HMAC_SHA512_V2"
+    Ds_MerchantParameters: constr(min_length=1)
+    Ds_Signature: constr(min_length=1)
+
+    @classmethod
+    def from_merchant(
+        cls,
+        merchant: RedsysMerchantParams,
+        terminal_key: str,
+    ) -> "RedsysForm":
+        # Build Ds_MerchantParameters: JSON (all strings) → base64
+        merchant_json = json.dumps(merchant.to_redsys_dict(), separators=(",", ":"))
+        merchant_b64 = base64.b64encode(merchant_json.encode("utf-8")).decode("ascii")
+
+        # Compute Ds_Signature
+        signature = compute_redsys_signature(
+            terminal_key=terminal_key,
+            merchant_params_b64=merchant_b64,
+            order=merchant.Ds_Merchant_Order,
+        )
+
+        return cls(
+            Ds_SignatureVersion="HMAC_SHA512_V2",
+            Ds_MerchantParameters=merchant_b64,
+            Ds_Signature=signature,
+        )
