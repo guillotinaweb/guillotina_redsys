@@ -11,14 +11,28 @@ def base_settings_configurator(settings):
         settings["applications"] = []
     settings["applications"].append("guillotina")
     settings["applications"].append("guillotina_redsys")
+    # testing sandbox:
+    # https://pagosonline.redsys.es/desarrolladores-inicio/integrate-con-nosotros/tarjetas-y-entornos-de-prueba/
     settings["load_utilities"] = {
         "redsys": {
             "provides": "guillotina_redsys.interfaces.IRedsysUtility",
             "factory": "guillotina_redsys.utility.RedsysUtility",
             "settings": {
-                "merchant_code": os.environ.get("REDSYS_MERCHANT_CODE", "123456789"),
+                "merchant_code": os.environ.get("REDSYS_MERCHANT_CODE", "999008881"),
                 "terminal": os.environ.get("REDSYS_TERMINAL", "001"),
-                "secret_key": os.environ.get("REDSYS_SECRET_KEY", "DUMMY_KEY_TERMINAL"),
+                "secret_key": os.environ.get(
+                    "REDSYS_SECRET_KEY", "sq7HjrUOBfKmC576ILgskD5srU870gJ7"
+                ),
+                "url_redsys": os.environ.get(
+                    "REDSYS_URL", "https://sis-t.redsys.es:25443/sis/rest"
+                ),
+                "threedsnotification_url": os.environ.get(
+                    "REDSYS_3DS_NOTIFICATION_URL", "https://foo-url.cat"
+                ),
+                "init_trata_peticion_notification_url": os.environ.get(
+                    "REDSYS_INIT_TRATA_PETICION_NOTIFICATION_URL",
+                    "https://sis-d.redsys.es/sis-simulador-web/SisRESTCreqCres_3DSecureV2.jsp",
+                ),
             },
         }
     }
