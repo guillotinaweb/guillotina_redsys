@@ -1,34 +1,31 @@
 # pydantic v1
-import json
-import base64
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal
+from decimal import ROUND_HALF_UP
+from guillotina_redsys.utils import compute_redsys_signature
+from pydantic import BaseModel
+from pydantic import conint
+from pydantic import constr
+from pydantic import validator
 from typing import Dict
 from typing import Literal
-from pydantic import BaseModel, conint, constr, validator
-from guillotina_redsys.utils import compute_redsys_signature
+
+import base64
+import json
+
+
+MerchantCode = constr(pattern=r"^\d{1,9}$")
+OrderId = constr(pattern=r"^[A-Za-z0-9]{4,12}$")
+Terminal = constr(pattern=r"^\d{3}$")
+TransactionType = constr(pattern=r"^\d$")
 
 
 class RedsysMerchantParams(BaseModel):
-    # NOTE: Redsys expects *strings of digits* in the final payload.
-    # We keep some as int for sanity, then export them as strings.
-
-    # 12 digits max, integer minor units (e.g., EUR cents). Must be >= 1
     Ds_Merchant_Amount: conint(ge=1, le=999_999_999_999)
-
-    # ISO-4217 numeric currency code, exactly 3 digits (e.g., EUR=978)
     Ds_Merchant_Currency: conint(ge=1, le=999)
-
-    # FUC (merchant code) — numeric up to 9 digits, kept as string to preserve leading zeros
-    Ds_Merchant_MerchantCode: constr(pattern=r"^\d{1,9}$")
-
-    # Order id — alphanumeric, 4–12 chars (Redsys recommends >4)
-    Ds_Merchant_Order: constr(pattern=r"^[A-Za-z0-9]{4,12}$")
-
-    # Terminal — exactly 3 digits (often "001")
-    Ds_Merchant_Terminal: constr(pattern=r"^\d{3}$")
-
-    # Transaction type — 1 digit (e.g., "0" authorization)
-    Ds_Merchant_TransactionType: constr(pattern=r"^\d$")
+    Ds_Merchant_MerchantCode: MerchantCode
+    Ds_Merchant_Order: OrderId
+    Ds_Merchant_Terminal: Terminal
+    Ds_Merchant_TransactionType: TransactionType
 
     class Config:
         anystr_strip_whitespace = True
@@ -54,7 +51,9 @@ class RedsysMerchantParams(BaseModel):
         Convert EUR to minor units (cents) with bankers-safe rounding.
         For Redsys you normally *never* send decimals; this enforces it.
         """
-        cents = (amount_eur * Decimal("100")).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
+        cents = (amount_eur * Decimal("100")).quantize(
+            Decimal("1"), rounding=ROUND_HALF_UP
+        )
         return int(cents)
 
     @classmethod
@@ -62,7 +61,7 @@ class RedsysMerchantParams(BaseModel):
         cls,
         *,
         amount_eur: Decimal,
-        currency_numeric: int = 978,   # EUR by default
+        currency_numeric: int = 978,  # EUR by default
         merchant_code: str,
         order: str,
         terminal: str = "001",
@@ -79,7 +78,12 @@ class RedsysMerchantParams(BaseModel):
 
     # -------- Optional defensive normalizers
 
-    @validator("Ds_Merchant_MerchantCode", "Ds_Merchant_Order", "Ds_Merchant_Terminal", "Ds_Merchant_TransactionType")
+    @validator(
+        "Ds_Merchant_MerchantCode",
+        "Ds_Merchant_Order",
+        "Ds_Merchant_Terminal",
+        "Ds_Merchant_TransactionType",
+    )
     def _strip_spaces(cls, v: str) -> str:
         return v.strip()
 

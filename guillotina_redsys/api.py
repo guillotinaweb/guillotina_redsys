@@ -9,9 +9,7 @@ from guillotina.interfaces import IContainer
     permission="guillotina.ViewContent",
     name="@defaultGet",
     summary="Get",
-    responses={
-        "200": {"description": "Get", "schema": {"properties": {}}}
-    },
+    responses={"200": {"description": "Get", "schema": {"properties": {}}}},
 )
 class RedsysGET(Service):
     async def __call__(self):

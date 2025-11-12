@@ -1,6 +1,5 @@
 import pytest
-from decimal import Decimal
-from guillotina_redsys.models import RedsysMerchantParams
+
 
 pytestmark = pytest.mark.asyncio
 
