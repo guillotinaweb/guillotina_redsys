@@ -77,18 +77,25 @@ class RedsysUtility:
         except Exception:
             return response
 
-    async def init_threeds_method(self, payload: RedsysIniciaPeticionResponse):
-        transaction_id = payload.Ds_EMV3DS.threeDSServerTransID
-        three_method_url = payload.Ds_EMV3DS.threeDSMethodURL
+    # TODO the frontend needs to do the wait for. The backend needs to
+    # log/persist the callback response. Use redis maybe?
+    async def init_threeds_method(self, transaction_id, three_method_url):
         payload = {
             "threeDSServerTransID": transaction_id,
             "threeDSMethodNotificationURL": self.notification_url,
         }
         if three_method_url:
-            payload = base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
+            payload = (
+                base64.urlsafe_b64encode(json.dumps(payload).encode())
+                .decode("ascii")
+                .rstrip("=")
+            )
             try:
                 result = await asyncio.wait_for(
-                    self.api.post(three_method_url, data=payload), timeout=10
+                    self.api.post(
+                        three_method_url, json={"threeDSMethodData": payload}
+                    ),
+                    timeout=10,
                 )
                 result = json.loads(result)
                 return Redsys3DSMethodResponse(
@@ -105,14 +112,13 @@ class RedsysUtility:
         cvv: CVV2,
         expiry_date: ExpiryDate,
         order: OrderId,
-        inicia_peticion_payload: RedsysIniciaPeticionResponse,
-        three_ds_method_response: Redsys3DSMethodResponse,
+        protocol_version: str,
+        transaction_id: str,
+        three_ds_comp_ind: str,
         currency=978,
         transaction_type="0",
     ):
         request = get_current_request()
-        protocol_version = inicia_peticion_payload.Ds_EMV3DS.protocolVersion
-        transaction_id = inicia_peticion_payload.Ds_EMV3DS.threeDSServerTransID
         emv3ds_auth = RedsysEMV3DS(
             threeDSInfo="AuthenticationData",
             protocolVersion=protocol_version,
@@ -126,7 +132,7 @@ class RedsysUtility:
             browserScreenHeight="1250",
             browserScreenWidth="1320",
             browserTZ="52",
-            threeDSCompInd=three_ds_method_response.threeDSCompInd,
+            threeDSCompInd=three_ds_comp_ind,
             notificationURL=self.notification_url,
         )
         merchant = RedsysMerchantParams.from_euros(

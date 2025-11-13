@@ -118,7 +118,11 @@ async def test_utility_3ds_2_2(guillotina_redsys):
         order=order,
     )
     assert isinstance(res.Ds_EMV3DS.threeDSServerTransID, str)
-    res_3ds = await utility.init_threeds_method(payload=res)
+    transaction_id = res.Ds_EMV3DS.threeDSServerTransID
+    three_method_url = res.Ds_EMV3DS.threeDSMethodURL
+    res_3ds = await utility.init_threeds_method(
+        transaction_id=transaction_id, three_method_url=three_method_url
+    )
     headers = {
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8,application/json",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36",
@@ -135,8 +139,9 @@ async def test_utility_3ds_2_2(guillotina_redsys):
         expiry_date="4912",
         cvv="123",
         order=order,
-        inicia_peticion_payload=res,
-        three_ds_method_response=res_3ds,
+        protocol_version=res.Ds_EMV3DS.protocolVersion,
+        transaction_id=transaction_id,
+        three_ds_comp_ind=res_3ds.threeDSCompInd,
     )
     assert isinstance(res_3ds_trata, RedsysEMV3DSResponse)
 
@@ -153,7 +158,11 @@ async def test_utility_3ds_2_1_frictionless(guillotina_redsys):
         order=order,
     )
     assert isinstance(res.Ds_EMV3DS.threeDSServerTransID, str)
-    res_3ds = await utility.init_threeds_method(payload=res)
+    transaction_id = res.Ds_EMV3DS.threeDSServerTransID
+    three_method_url = res.Ds_EMV3DS.threeDSMethodURL
+    res_3ds = await utility.init_threeds_method(
+        transaction_id=transaction_id, three_method_url=three_method_url
+    )
     headers = {
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8,application/json",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36",
@@ -170,10 +179,51 @@ async def test_utility_3ds_2_1_frictionless(guillotina_redsys):
         expiry_date="4912",
         cvv="123",
         order=order,
-        inicia_peticion_payload=res,
-        three_ds_method_response=res_3ds,
+        protocol_version=res.Ds_EMV3DS.protocolVersion,
+        transaction_id=transaction_id,
+        three_ds_comp_ind=res_3ds.threeDSCompInd,
     )
     assert isinstance(res_3ds_trata, RedsysAuthResult)
+
+
+async def test_utility_3ds_2_1_method_url(guillotina_redsys):
+    utility = get_utility(IRedsysUtility)
+    # Visa EMV3DS 2.2
+    order = generate_redsys_order_id(8)
+    res = await utility.init_transaction(
+        amount=Decimal("12.49"),
+        card="4918019160034602",
+        expiry_date="4912",
+        cvv="123",
+        order=order,
+    )
+    assert isinstance(res.Ds_EMV3DS.threeDSServerTransID, str)
+    transaction_id = res.Ds_EMV3DS.threeDSServerTransID
+    three_method_url = res.Ds_EMV3DS.threeDSMethodURL
+    res_3ds = await utility.init_threeds_method(
+        transaction_id=transaction_id, three_method_url=three_method_url
+    )
+    headers = {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8,application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36",
+    }
+    request = make_mocked_request("POST", "/", headers=headers, payload={})
+    request.interaction = None
+    alsoProvides(request, IRequest)
+    alsoProvides(request, IDefaultLayer)
+    task_vars.request.set(request)
+
+    res_3ds_trata = await utility.init_trata_peticion(
+        amount=Decimal("12.49"),
+        card="4918019160034602",
+        expiry_date="4912",
+        cvv="123",
+        order=order,
+        protocol_version=res.Ds_EMV3DS.protocolVersion,
+        transaction_id=transaction_id,
+        three_ds_comp_ind=res_3ds.threeDSCompInd,
+    )
+    assert isinstance(res_3ds_trata, RedsysEMV3DSResponse)
 
 
 async def test_utility_3ds_2_1(guillotina_redsys):
