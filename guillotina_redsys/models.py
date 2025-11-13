@@ -5,14 +5,15 @@ from guillotina_redsys.utils import compute_redsys_signature
 from pydantic import BaseModel
 from pydantic import conint
 from pydantic import constr
+from pydantic import Field
 from pydantic import validator
 from typing import Dict
 from typing import Literal
-from pydantic import Field
-import base64
-import json
 from typing import Optional
 from urllib.parse import unquote
+
+import base64
+import json
 
 
 # Common string types
