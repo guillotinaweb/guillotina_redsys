@@ -28,7 +28,6 @@ async def test_models_responses():
         transaction_type="0",
     )
     payload = params.to_redsys_dict()
-    __import__("pdb").set_trace()
     assert payload == {
         "Ds_Merchant_Amount": "1249",
         "Ds_Merchant_Currency": "978",
@@ -50,7 +49,6 @@ async def test_models_responses():
         payload["Ds_Signature"]
         == "WLjLKRc4lQWWpgstbhh4vSyhgpXTPxmqBCCymRrn1D25onPcGW6K-EpXhFI6eoTQ-956f8HIq-zVfPkbHNGlug"
     )
-    __import__("pdb").set_trace()
     params = RedsysMerchantParams.from_euros(
         amount_eur=Decimal("12.49"),
         currency_numeric=978,
@@ -213,8 +211,7 @@ async def test_utility_club_international(guillotina_redsys):
         cvv="123",
         order="ABCD1234",
     )
-    assert res["Ds_EMV3DS"]["protocolVersion"] == "NO_3DS_v2"
-    res = await utility.threeds_method(payload=res)
+    assert res.Ds_EMV3DS.protocolVersion == "NO_3DS_v2"
 
 
 async def test_utility_jcb_secure(guillotina_redsys):
@@ -227,7 +224,7 @@ async def test_utility_jcb_secure(guillotina_redsys):
         cvv="123",
         order="ABCD1234",
     )
-    assert res["Ds_EMV3DS"]["protocolVersion"] == "NO_3DS_v2"
+    assert res.Ds_EMV3DS.protocolVersion == "NO_3DS_v2"
 
 
 def test_compute_signature():
