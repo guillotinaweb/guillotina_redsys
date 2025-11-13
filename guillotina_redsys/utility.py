@@ -9,9 +9,9 @@ from guillotina_redsys.models import RedsysEMV3DS
 from guillotina_redsys.models import RedsysEMV3DSResponse
 from guillotina_redsys.models import Redsys3DSMethodResponse
 from guillotina_redsys.models import RedsysErrorResponse
+from guillotina_redsys.models import RedsysAuthResult
 from guillotina_redsys.utils import RestAPI, decode_redsys_merchant_parameters
 from guillotina_redsys.models import Pan, CVV2, ExpiryDate, OrderId
-from typing import Any, Dict
 from guillotina.utils import get_current_request
 
 
@@ -22,10 +22,7 @@ class RedsysUtility:
         self.secret_key = self._settings["secret_key"]
         self.merchant_code = self._settings["merchant_code"]
         self.url_redsys = self._settings["url_redsys"]
-        self.threedsnotification_url = self._settings["threedsnotification_url"]
-        self.init_trata_peticion_notification_url = self._settings[
-            "init_trata_peticion_notification_url"
-        ]
+        self.notification_url = self._settings["notification_url"]
         self.redsys_api = RestAPI(self.url_redsys)
         self.api = RestAPI()
 
@@ -80,7 +77,7 @@ class RedsysUtility:
         three_method_url = payload.Ds_EMV3DS.threeDSMethodURL
         payload = {
             "threeDSServerTransID": transaction_id,
-            "threeDSMethodNotificationURL": self.threedsnotification_url,
+            "threeDSMethodNotificationURL": self.notification_url,
         }
         if three_method_url:
             payload = base64.urlsafe_b64encode(payload).decode("ascii").rstrip("=")
@@ -125,7 +122,7 @@ class RedsysUtility:
             browserScreenWidth="1320",
             browserTZ="52",
             threeDSCompInd=three_ds_method_response.threeDSCompInd,
-            notificationURL=self.init_trata_peticion_notification_url,
+            notificationURL=self.notification_url,
         )
         merchant = RedsysMerchantParams.from_euros(
             amount_eur=amount,
@@ -147,13 +144,55 @@ class RedsysUtility:
         response = json.loads(response)
         if "errorCode" in response:
             return RedsysErrorResponse(**response)
-        try:
-            decoded = decode_redsys_merchant_parameters(
-                response["Ds_MerchantParameters"]
-            )
+
+        decoded = decode_redsys_merchant_parameters(response["Ds_MerchantParameters"])
+        if "Ds_EMV3DS" in decoded:
             return RedsysEMV3DSResponse(**decoded["Ds_EMV3DS"])
-        except Exception:
-            return response
+        if "Ds_Response" in decoded:
+            return RedsysAuthResult(**decoded)
+
+    async def authenticate_cres(
+        self,
+        amount: Decimal,
+        card: Pan,
+        cvv: CVV2,
+        expiry_date: ExpiryDate,
+        order: OrderId,
+        inicia_peticion_payload: RedsysIniciaPeticionResponse,
+        three_ds_method_response: Redsys3DSMethodResponse,
+        cres: str,
+        currency=978,
+        transaction_type="0",
+    ):
+        protocol_version = inicia_peticion_payload.Ds_EMV3DS.protocolVersion
+        emv3ds_auth = RedsysEMV3DS(
+            threeDSInfo="ChallengeResponse",
+            protocolVersion=protocol_version,
+            cres=cres,
+        )
+        merchant = RedsysMerchantParams.from_euros(
+            amount_eur=amount,
+            currency_numeric=currency,
+            merchant_code=self.merchant_code,
+            order=order,
+            terminal=self.terminal,
+            transaction_type="0",
+            pan=card,
+            cvv2=cvv,
+            expiry_date=expiry_date,
+            emv3ds=emv3ds_auth,
+        )
+        form = RedsysForm.from_merchant(
+            merchant=merchant,
+            terminal_key=self.secret_key,
+        )
+        response = await self.redsys_api.post("/trataPeticionREST", json=form.dict())
+        response = json.loads(response)
+        if "errorCode" in response:
+            return RedsysErrorResponse(**response)
+        decoded = decode_redsys_merchant_parameters(response["Ds_MerchantParameters"])
+        if "Ds_Response" in decoded:
+            return RedsysAuthResult(**decoded)
 
     async def initialize(self):
         pass

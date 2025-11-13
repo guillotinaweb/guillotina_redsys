@@ -8,10 +8,11 @@ from pydantic import constr
 from pydantic import validator
 from typing import Dict
 from typing import Literal
-
+from pydantic import Field
 import base64
 import json
 from typing import Optional
+from urllib.parse import unquote
 
 
 # Common string types
@@ -33,6 +34,7 @@ ThreeDSCompInd = constr(pattern=r"^[YN]$")
 class RedsysEMV3DS(BaseModel):
     # For your example: {"threeDSInfo": "CardData"}
     threeDSInfo: constr(min_length=1, max_length=32)
+    cres: Optional[str] = None
 
     # optional (for iniciaPeticion + authentication)
     protocolVersion: Optional[constr(min_length=1, max_length=16)] = None
@@ -237,4 +239,38 @@ class RedsysAPIError(Exception):
         self.error = error
         super().__init__(
             f"Redsys error {error.errorCode}: {error.errorCodeDescription}"
+        )
+
+
+# --- new: frictionless / final authorization shape ---
+class RedsysAuthResult(BaseModel):
+    Ds_Date: Optional[str] = None  # may come URL-encoded
+    Ds_Hour: Optional[str] = None  # may come URL-encoded
+    Ds_SecurePayment: Optional[constr(pattern=r"^[0-2]$")] = None
+    Ds_Amount: constr(pattern=r"^\d+$")
+    Ds_Currency: constr(pattern=r"^\d{3}$")
+    Ds_Order: constr(pattern=r"^[A-Za-z0-9]{4,12}$")
+    Ds_MerchantCode: constr(pattern=r"^\d{1,9}$")
+    Ds_Terminal: constr(pattern=r"^\d{1,3}$")
+    Ds_Response: constr(pattern=r"^\d{4}$")  # "0000" = OK
+    Ds_TransactionType: constr(pattern=r"^\d$")
+    Ds_AuthorisationCode: Optional[constr(min_length=1, max_length=12)] = None
+    Ds_ConsumerLanguage: Optional[str] = None
+    Ds_Card_Country: Optional[str] = None
+    Ds_Card_Brand: Optional[str] = None
+    Ds_ProcessedPayMethod: Optional[str] = None
+    # field name variants Redsys uses
+    Ds_Card_Number: Optional[str] = Field(default=None, alias="Ds_Card_Number")
+    Ds_CardNumber: Optional[str] = Field(default=None, alias="Ds_CardNumber")
+
+    # Handy helpers
+    @property
+    def is_authorized(self) -> bool:
+        return self.Ds_Response == "0000"
+
+    def decoded_datetime(self) -> tuple[Optional[str], Optional[str]]:
+        # Redsys often URL-encodes date/hour in this response
+        return (
+            unquote(self.Ds_Date) if self.Ds_Date else None,
+            unquote(self.Ds_Hour) if self.Ds_Hour else None,
         )

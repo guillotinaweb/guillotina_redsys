@@ -137,6 +137,7 @@ class RestAPI:
             method.upper(),
             url,
             json=json,
+            data=data,
             params=params,
             headers=headers,
         ) as resp:
@@ -166,24 +167,26 @@ class RestAPI:
         self,
         path: str,
         *,
+        data: Optional[str] = None,
         json: Optional[Dict[str, Any]] = None,
         params: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
     ) -> Union[Dict[str, Any], str]:
         return await self._request(
-            "POST", path, json=json, params=params, headers=headers
+            "POST", path, json=json, params=params, data=data, headers=headers
         )
 
     async def patch(
         self,
         path: str,
         *,
+        data: Optional[str] = None,
         json: Optional[Dict[str, Any]] = None,
         params: Optional[Dict[str, Any]] = None,
         headers: Optional[Dict[str, str]] = None,
     ) -> Union[Dict[str, Any], str]:
         return await self._request(
-            "PATCH", path, json=json, params=params, headers=headers
+            "PATCH", path, json=json, params=params, data=data, headers=headers
         )
 
     async def delete(
