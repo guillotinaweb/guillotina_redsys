@@ -13,8 +13,9 @@ from guillotina_redsys.tests.utils import generate_redsys_order_id
 from guillotina_redsys.utils import compute_redsys_signature
 from zope.interface import alsoProvides
 
-import pytest
 import json
+import pytest
+
 
 pytestmark = pytest.mark.asyncio
 
@@ -136,10 +137,6 @@ async def test_utility_3ds_2_2(guillotina_redsys, redis_container):
     assert resp == {"threeDSCompInd": "Y"}
 
     transaction_id = res.Ds_EMV3DS.threeDSServerTransID
-    three_method_url = res.Ds_EMV3DS.threeDSMethodURL
-    res_3ds = await utility.init_threeds_method(
-        transaction_id=transaction_id, three_method_url=three_method_url
-    )
     headers = {
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8,application/json",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36",
@@ -158,10 +155,35 @@ async def test_utility_3ds_2_2(guillotina_redsys, redis_container):
         order=order,
         protocol_version=res.Ds_EMV3DS.protocolVersion,
         transaction_id=transaction_id,
-        three_ds_comp_ind=res_3ds.threeDSCompInd,
+        three_ds_comp_ind="Y",
     )
-    __import__("pdb").set_trace()
     assert isinstance(res_3ds_trata, RedsysEMV3DSResponse)
+
+    # Let's simulate that redsys sends the confirmation of the challenge
+    resp, status = await guillotina_redsys(
+        "POST",
+        f"/db/guillotina/@notificationRedsysChallenge/{res.Ds_Order}/{res.Ds_EMV3DS.threeDSServerTransID}",
+        data=json.dumps({"CRES": "FAKECHALLENGE"}),
+        authenticated=False,
+    )
+    assert status == 200
+
+    resp, status = await guillotina_redsys(
+        "POST",
+        f"/db/guillotina/@performNotificationRedsysChallenge/{res.Ds_Order}/{res.Ds_EMV3DS.threeDSServerTransID}",
+        data=json.dumps(
+            {
+                "amount": "12.49",
+                "card": "4548810000000003",
+                "expiry_date": "4912",
+                "cvv": "123",
+                "protocol_version": res.Ds_EMV3DS.protocolVersion,
+            }
+        ),
+        authenticated=False,
+    )
+    assert status == 200
+    assert resp["errorCode"] == "-1"
 
 
 async def test_utility_3ds_2_1_frictionless(guillotina_redsys):
@@ -177,10 +199,6 @@ async def test_utility_3ds_2_1_frictionless(guillotina_redsys):
     )
     assert isinstance(res.Ds_EMV3DS.threeDSServerTransID, str)
     transaction_id = res.Ds_EMV3DS.threeDSServerTransID
-    three_method_url = res.Ds_EMV3DS.threeDSMethodURL
-    res_3ds = await utility.init_threeds_method(
-        transaction_id=transaction_id, three_method_url=three_method_url
-    )
     headers = {
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8,application/json",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36",
@@ -199,7 +217,7 @@ async def test_utility_3ds_2_1_frictionless(guillotina_redsys):
         order=order,
         protocol_version=res.Ds_EMV3DS.protocolVersion,
         transaction_id=transaction_id,
-        three_ds_comp_ind=res_3ds.threeDSCompInd,
+        three_ds_comp_ind="Y",
     )
     assert isinstance(res_3ds_trata, RedsysAuthResult)
 
@@ -217,10 +235,6 @@ async def test_utility_3ds_2_1_method_url(guillotina_redsys):
     )
     assert isinstance(res.Ds_EMV3DS.threeDSServerTransID, str)
     transaction_id = res.Ds_EMV3DS.threeDSServerTransID
-    three_method_url = res.Ds_EMV3DS.threeDSMethodURL
-    res_3ds = await utility.init_threeds_method(
-        transaction_id=transaction_id, three_method_url=three_method_url
-    )
     headers = {
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8,application/json",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/71.0.3578.98 Safari/537.36",
@@ -239,7 +253,7 @@ async def test_utility_3ds_2_1_method_url(guillotina_redsys):
         order=order,
         protocol_version=res.Ds_EMV3DS.protocolVersion,
         transaction_id=transaction_id,
-        three_ds_comp_ind=res_3ds.threeDSCompInd,
+        three_ds_comp_ind="Y",
     )
     assert isinstance(res_3ds_trata, RedsysEMV3DSResponse)
 

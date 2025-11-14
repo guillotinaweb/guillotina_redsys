@@ -1,5 +1,7 @@
 from guillotina import configure
-from guillotina.interfaces import IContainer, IObjectAddedEvent, IRolePermissionManager
+from guillotina.interfaces import IContainer
+from guillotina.interfaces import IObjectAddedEvent
+from guillotina.interfaces import IRolePermissionManager
 
 
 @configure.subscriber(for_=(IContainer, IObjectAddedEvent))

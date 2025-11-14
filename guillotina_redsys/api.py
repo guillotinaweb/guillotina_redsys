@@ -1,10 +1,11 @@
+from decimal import Decimal
 from guillotina import configure
 from guillotina.api.service import Service
-from guillotina.interfaces import IResource, IContainer
 from guillotina.component import get_utility
-from guillotina_redsys.interfaces import IRedsysUtility
 from guillotina.contrib.redis import get_driver
-from decimal import Decimal
+from guillotina.interfaces import IContainer
+from guillotina.interfaces import IResource
+from guillotina_redsys.interfaces import IRedsysUtility
 
 
 @configure.service(
@@ -161,26 +162,35 @@ class RedsysNotificationChallenge(Service):
     context=IContainer,
     method="POST",
     permission="redsys.Public",
-    name="@getnotificationRedsysChallenge/{order_id}/{three_dss_trans_id}",
+    name="@performNotificationRedsysChallenge/{order_id}/{three_dss_trans_id}",
     summary="Starts a transaction",
     responses={"200": {"description": "Post", "schema": {"properties": {}}}},
 )
 class GetRedsysNotificationChallenge(Service):
     async def __call__(self):
-        # Save the result of the 3DS notification taking into account
-        # order_id, and transaction_id
+        payload = await self.request.json()
+        amount = payload["amount"]
+        card = payload["card"]
+        expiry_date = payload["expiry_date"]
+        cvv = payload["cvv"]
+        protocol = payload["protocol_version"]
+        currency = payload.get("currency", 978)
         order_id = self.request.matchdict["order_id"]
         trans_id = self.request.matchdict["three_dss_trans_id"]
-        payload = await self.request.json()
-        result = payload.get("CRES", "")
         redis_driver = await get_driver()
         key_redis = f"notification_CRES:{order_id}:{trans_id}"
         result = await redis_driver.get(key=key_redis)
         if result is None:
             return None
-        amount = payload["amount"]
-        card = payload["card"]
-        expiry_date = payload["expiry_date"]
-        cvv = payload["cvv"]
-        order = payload["order_id"]
-        protocol = payload["protocol_version"]
+        utility = get_utility(IRedsysUtility)
+        res = await utility.authenticate_cres(
+            amount=Decimal(amount),
+            card=card,
+            cvv=cvv,
+            expiry_date=expiry_date,
+            protocol_version=protocol,
+            order=order_id,
+            currency=currency,
+            cres=result.decode("utf-8"),
+        )
+        return res.dict()
