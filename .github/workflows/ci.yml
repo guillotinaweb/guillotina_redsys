@@ -1,4 +1,4 @@
-name: guillotina_audit
+name: guillotina_redsys
 
 on: [push]
 
