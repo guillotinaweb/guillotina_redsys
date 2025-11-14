@@ -255,7 +255,7 @@ async def test_utility_3ds_2_1_method_url(guillotina_redsys):
         transaction_id=transaction_id,
         three_ds_comp_ind="Y",
     )
-    assert isinstance(res_3ds_trata, RedsysEMV3DSResponse)
+    assert isinstance(res_3ds_trata, RedsysAuthResult)
 
 
 async def test_utility_3ds_2_1(guillotina_redsys):
