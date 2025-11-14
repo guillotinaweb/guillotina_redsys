@@ -14,7 +14,7 @@ from guillotina_redsys.utils import compute_redsys_signature
 from zope.interface import alsoProvides
 
 import pytest
-
+import json
 
 pytestmark = pytest.mark.asyncio
 
@@ -106,7 +106,7 @@ async def test_models_responses():
 # https://pagosonline.redsys.es/desarrolladores-inicio/integrate-con-nosotros/tarjetas-y-entornos-de-prueba/
 
 
-async def test_utility_3ds_2_2(guillotina_redsys):
+async def test_utility_3ds_2_2(guillotina_redsys, redis_container):
     utility = get_utility(IRedsysUtility)
     # Visa EMV3DS 2.2
     order = generate_redsys_order_id(8)
@@ -118,6 +118,23 @@ async def test_utility_3ds_2_2(guillotina_redsys):
         order=order,
     )
     assert isinstance(res.Ds_EMV3DS.threeDSServerTransID, str)
+    # Let's simulate that redsys sends a 3ds method url POST request
+    resp, status = await guillotina_redsys(
+        "POST",
+        f"/db/guillotina/@notificationRedsys3DS/{res.Ds_Order}/{res.Ds_EMV3DS.threeDSServerTransID}",
+        data=json.dumps({"threeDSCompInd": "Y"}),
+        authenticated=False,
+    )
+    assert status == 200
+
+    resp, status = await guillotina_redsys(
+        "GET",
+        f"/db/guillotina/@getnotificationRedsys3DS/{res.Ds_Order}/{res.Ds_EMV3DS.threeDSServerTransID}",
+        authenticated=False,
+    )
+    assert status == 200
+    assert resp == {"threeDSCompInd": "Y"}
+
     transaction_id = res.Ds_EMV3DS.threeDSServerTransID
     three_method_url = res.Ds_EMV3DS.threeDSMethodURL
     res_3ds = await utility.init_threeds_method(
@@ -143,6 +160,7 @@ async def test_utility_3ds_2_2(guillotina_redsys):
         transaction_id=transaction_id,
         three_ds_comp_ind=res_3ds.threeDSCompInd,
     )
+    __import__("pdb").set_trace()
     assert isinstance(res_3ds_trata, RedsysEMV3DSResponse)
 
 

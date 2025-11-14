@@ -27,7 +27,7 @@ class RedsysUtility:
         self.secret_key = self._settings["secret_key"]
         self.merchant_code = self._settings["merchant_code"]
         self.url_redsys = self._settings["url_redsys"]
-        self.notification_url = self._settings["notification_url"]
+        self.container_url = self._settings["container_url"]
         self.redsys_api = RestAPI(self.url_redsys)
         self.api = RestAPI()
 
@@ -69,20 +69,28 @@ class RedsysUtility:
         response = json.loads(response)
         if "errorCode" in response:
             return RedsysErrorResponse(**response)
-        try:
-            decoded = decode_redsys_merchant_parameters(
-                response["Ds_MerchantParameters"]
-            )
-            return RedsysIniciaPeticionResponse(**decoded)
-        except Exception:
-            return response
+        decoded = decode_redsys_merchant_parameters(response["Ds_MerchantParameters"])
+        result = RedsysIniciaPeticionResponse(**decoded)
+        notification_url = f"{self.container_url}/@notificationRedsys3DS/{result.Ds_Order}/{result.Ds_EMV3DS.threeDSServerTransID}"
+        payload = {
+            "threeDSServerTransID": result.Ds_EMV3DS.threeDSServerTransID,
+            "threeDSMethodNotificationURL": notification_url,
+        }
+        payload = (
+            base64.urlsafe_b64encode(json.dumps(payload).encode())
+            .decode("ascii")
+            .rstrip("=")
+        )
+
+        result.payload_3DS = payload
+        return result
 
     # TODO the frontend needs to do the wait for. The backend needs to
     # log/persist the callback response. Use redis maybe?
     async def init_threeds_method(self, transaction_id, three_method_url):
         payload = {
             "threeDSServerTransID": transaction_id,
-            "threeDSMethodNotificationURL": self.notification_url,
+            "threeDSMethodNotificationURL": self.container_url,
         }
         if three_method_url:
             payload = (
@@ -119,6 +127,7 @@ class RedsysUtility:
         transaction_type="0",
     ):
         request = get_current_request()
+        notification_url = f"{self.container_url}/@notificationRedsysChallenge/{order}/{transaction_id}"
         emv3ds_auth = RedsysEMV3DS(
             threeDSInfo="AuthenticationData",
             protocolVersion=protocol_version,
@@ -133,7 +142,7 @@ class RedsysUtility:
             browserScreenWidth="1320",
             browserTZ="52",
             threeDSCompInd=three_ds_comp_ind,
-            notificationURL=self.notification_url,
+            notificationURL=notification_url,
         )
         merchant = RedsysMerchantParams.from_euros(
             amount_eur=amount,
@@ -155,7 +164,6 @@ class RedsysUtility:
         response = json.loads(response)
         if "errorCode" in response:
             return RedsysErrorResponse(**response)
-
         decoded = decode_redsys_merchant_parameters(response["Ds_MerchantParameters"])
         if "Ds_EMV3DS" in decoded:
             return RedsysEMV3DSResponse(**decoded["Ds_EMV3DS"])
@@ -169,13 +177,11 @@ class RedsysUtility:
         cvv: CVV2,
         expiry_date: ExpiryDate,
         order: OrderId,
-        inicia_peticion_payload: RedsysIniciaPeticionResponse,
-        three_ds_method_response: Redsys3DSMethodResponse,
+        protocol_version: str,
         cres: str,
         currency=978,
         transaction_type="0",
     ):
-        protocol_version = inicia_peticion_payload.Ds_EMV3DS.protocolVersion
         emv3ds_auth = RedsysEMV3DS(
             threeDSInfo="ChallengeResponse",
             protocolVersion=protocol_version,

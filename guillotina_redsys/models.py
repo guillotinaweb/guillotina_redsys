@@ -224,6 +224,7 @@ class RedsysIniciaPeticionResponse(BaseModel):
     Ds_EMV3DS: RedsysEMV3DSResponse
     Ds_Excep_SCA: Optional[ExcepSCA] = None
     Ds_Card_PSD2: Optional[CardPSD2Flag] = None
+    payload_3DS: Optional[str] = None
 
 
 RepeatOrderStatus = Literal["Y", "N"]

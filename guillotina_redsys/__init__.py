@@ -4,6 +4,7 @@ import os
 
 
 app_settings = {
+    "applications": ["guillotina.contrib.redis"],
     "load_utilities": {
         "redsys": {
             "provides": "guillotina_redsys.interfaces.IRedsysUtility",
@@ -15,10 +16,10 @@ app_settings = {
                 "url_redsys": os.environ.get(
                     "REDSYS_URL", "https://sis-t.redsys.es:25443/sis/rest"
                 ),
-                "notification_url": os.environ.get("REDSYS_NOTIFICATION_URL"),
+                "container_url": os.environ.get("REDSYS_CONTAINER_URL"),
             },
         }
-    }
+    },
 }
 
 
@@ -27,3 +28,5 @@ def includeme(root, settings):
     configure.scan("guillotina_redsys.api")
     configure.scan("guillotina_redsys.interfaces")
     configure.scan("guillotina_redsys.utils")
+    configure.scan("guillotina_redsys.subscribers")
+    configure.scan("guillotina_redsys.permissions")

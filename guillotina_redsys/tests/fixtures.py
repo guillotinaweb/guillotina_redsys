@@ -26,8 +26,8 @@ def base_settings_configurator(settings):
                 "url_redsys": os.environ.get(
                     "REDSYS_URL", "https://sis-t.redsys.es:25443/sis/rest"
                 ),
-                "notification_url": os.environ.get(
-                    "REDSYS_NOTIFICATION_URL", "https://foo-url.cat"
+                "container_url": os.environ.get(
+                    "REDSYS_CONTAINER_URL", "https://foo-url.cat/db/container"
                 ),
             },
         }
