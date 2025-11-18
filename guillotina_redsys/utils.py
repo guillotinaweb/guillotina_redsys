@@ -1,8 +1,19 @@
+from aiohttp import ClientConnectorError
 from Crypto.Cipher import AES  # pip install pycryptodome
+from tenacity import retry
+from tenacity import retry_if_exception_type
+from tenacity import stop_after_attempt
+from tenacity import wait_exponential
+from typing import Any
+from typing import Dict
+from typing import Optional
+from typing import Union
 
+import aiohttp
 import base64
 import hashlib
 import hmac
+import json
 
 
 # ---------- helpers ----------
@@ -13,6 +24,16 @@ def _base64url_encode(raw: bytes) -> str:
     BASE64URL without padding, as Redsys expects.
     """
     return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def decode_redsys_merchant_parameters(encoded: str) -> Dict[str, Any]:
+    """
+    Decode Redsys Ds_MerchantParameters (Base64URL without padding) into a dict.
+    """
+    # restore padding for base64
+    padding = "=" * (-len(encoded) % 4)
+    raw = base64.urlsafe_b64decode(encoded + padding)
+    return json.loads(raw.decode("utf-8"))
 
 
 def _aes_cbc_encrypt(key16: bytes, plaintext: bytes) -> bytes:
@@ -38,7 +59,6 @@ def compute_redsys_signature(
     - merchant_params_b64: Ds_MerchantParameters already base64-encoded.
     - order: Ds_Merchant_Order (plain string).
     """
-
     # 1) Preprocess key to exactly 16 chars
     if len(terminal_key) > 16:
         key16_str = terminal_key[:16]
@@ -61,3 +81,119 @@ def compute_redsys_signature(
 
     # 5) BASE64URL of HMAC result -> Ds_Signature
     return _base64url_encode(mac)
+
+
+class HTTPServerError(Exception):
+    """Raised for 5xx responses so tenacity can retry."""
+
+
+class RestAPI:
+    """
+    Minimal async REST client with retry logic.
+    Good fit for Redsys REST calls.
+    """
+
+    def __init__(
+        self,
+        base_url: Optional[str] = None,
+        *,
+        session: Optional[aiohttp.ClientSession] = None,
+        timeout: int = 10,
+    ) -> None:
+        if base_url:
+            self.base_url = base_url.rstrip("/")
+        else:
+            self.base_url = None
+        self._external_session = session is not None
+        self.session = session or aiohttp.ClientSession(
+            timeout=aiohttp.ClientTimeout(total=timeout)
+        )
+
+    async def close(self) -> None:
+        if not self._external_session:
+            await self.session.close()
+
+    @retry(
+        retry=retry_if_exception_type((ClientConnectorError, HTTPServerError)),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(min=0.5, max=5),
+        reraise=True,
+    )
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        json: Optional[Dict[str, Any]] = None,
+        data: Optional[Dict[str, Any]] = None,
+        params: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ) -> Union[Dict[str, Any], str]:
+        if self.base_url:
+            url = f"{self.base_url}/{path.lstrip('/')}"
+        else:
+            url = path
+        async with self.session.request(
+            method.upper(),
+            url,
+            json=json,
+            data=data,
+            params=params,
+            headers=headers,
+        ) as resp:
+            # Retry only on 5xx
+            if 500 <= resp.status < 600:
+                text = await resp.text()
+                raise HTTPServerError(f"{resp.status} Server Error: {text}")
+
+            # For Redsys you usually get JSON
+            try:
+                return await resp.json()
+            except Exception:
+                return await resp.text()
+
+    # ---- public coroutines ----
+
+    async def get(
+        self,
+        path: str,
+        *,
+        params: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ) -> Union[Dict[str, Any], str]:
+        return await self._request("GET", path, params=params, headers=headers)
+
+    async def post(
+        self,
+        path: str,
+        *,
+        data: Optional[str] = None,
+        json: Optional[Dict[str, Any]] = None,
+        params: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ) -> Union[Dict[str, Any], str]:
+        return await self._request(
+            "POST", path, json=json, params=params, data=data, headers=headers
+        )
+
+    async def patch(
+        self,
+        path: str,
+        *,
+        data: Optional[str] = None,
+        json: Optional[Dict[str, Any]] = None,
+        params: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ) -> Union[Dict[str, Any], str]:
+        return await self._request(
+            "PATCH", path, json=json, params=params, data=data, headers=headers
+        )
+
+    async def delete(
+        self,
+        path: str,
+        *,
+        params: Optional[Dict[str, Any]] = None,
+        headers: Optional[Dict[str, str]] = None,
+    ) -> Union[Dict[str, Any], str]:
+        return await self._request("DELETE", path, params=params, headers=headers)

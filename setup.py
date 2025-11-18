@@ -11,7 +11,7 @@ test_requires = [
     "pytest-cov",
     "pytest-docker-fixtures[pg]>=1.3.0",
     "docker",
-    "aiohttp>=3.0.0,<4.0.0"
+    "aiohttp>=3.0.0,<4.0.0",
 ]
 
 
@@ -40,6 +40,8 @@ setup(
     install_requires=[
         "guillotina>=7.0.0",
         "pydantic",
+        "tenacity==9.1.2",
+        "redis>4.2.0rc1",
     ],
     tests_require=test_requires,
     extras_require={"test": test_requires},

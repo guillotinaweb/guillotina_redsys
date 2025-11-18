@@ -4,6 +4,7 @@ import os
 
 
 app_settings = {
+    "applications": ["guillotina.contrib.redis"],
     "load_utilities": {
         "redsys": {
             "provides": "guillotina_redsys.interfaces.IRedsysUtility",
@@ -12,9 +13,13 @@ app_settings = {
                 "merchant_code": os.environ.get("REDSYS_MERCHANT_CODE"),
                 "terminal": os.environ.get("REDSYS_TERMINAL", "001"),
                 "secret_key": os.environ.get("REDSYS_SECRET_KEY"),
+                "url_redsys": os.environ.get(
+                    "REDSYS_URL", "https://sis-t.redsys.es:25443/sis/rest"
+                ),
+                "container_url": os.environ.get("REDSYS_CONTAINER_URL"),
             },
         }
-    }
+    },
 }
 
 
@@ -23,3 +28,5 @@ def includeme(root, settings):
     configure.scan("guillotina_redsys.api")
     configure.scan("guillotina_redsys.interfaces")
     configure.scan("guillotina_redsys.utils")
+    configure.scan("guillotina_redsys.subscribers")
+    configure.scan("guillotina_redsys.permissions")
