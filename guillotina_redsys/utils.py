@@ -95,7 +95,7 @@ class RestAPI:
 
     def __init__(
         self,
-        base_url: str | None = None,
+        base_url: Optional[str] = None,
         *,
         session: Optional[aiohttp.ClientSession] = None,
         timeout: int = 10,
