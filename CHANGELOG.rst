@@ -1,4 +1,4 @@
-1.0.0 (unreleased)
+1.0.0 (2025-11-19)
 ------------------
 - Initial public release of **guillotina_redsys**.  [nilbacardit26]
 - Core Redsys REST + 3DS v2 flow implemented (iniciaPeticion, trataPeticion, challenge/frictionless).
