@@ -1,3 +1,11 @@
 1.0.0 (unreleased)
 ------------------
-- Nothing changed yet.
+- Initial public release of **guillotina_redsys**.  [nilbacardit26]
+- Core Redsys REST + 3DS v2 flow implemented (iniciaPeticion, trataPeticion, challenge/frictionless).
+- Guillotina endpoints added:
+  - @initTransactionRedsys, @initThreeDS, @initTrataPeticion
+  - @notificationRedsys3DS, @getnotificationRedsys3DS
+  - @notificationRedsysChallenge, @performNotificationRedsysChallenge
+- Utility added: async Redsys client + orchestration (`RedsysUtility`) with retries/backoff.
+- Pydantic models added for merchant params, EMV3DS, responses, and errors.
+- Redis required to persist short-lived **CRES** and **threeDSCompInd** flags.
