@@ -22,6 +22,7 @@ setup(
     author="Nil Bacardit Vinyals",
     author_email="n.bacardit@iskra.cat",
     version=open("VERSION").read().strip(),
+    long_description_content_type="text/x-rst",
     long_description=(open("README.rst").read() + "\n" + open("CHANGELOG.rst").read()),
     classifiers=[
         "Programming Language :: Python :: 3.7",
