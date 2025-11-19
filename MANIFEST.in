@@ -1,0 +1,4 @@
+include VERSION
+include *.py
+include *.rst
+recursive-include guillotina_redsys *.py *.typed

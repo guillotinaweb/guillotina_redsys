@@ -6,6 +6,6 @@
   - @initTransactionRedsys, @initThreeDS, @initTrataPeticion
   - @notificationRedsys3DS, @getnotificationRedsys3DS
   - @notificationRedsysChallenge, @performNotificationRedsysChallenge
-- Utility added: async Redsys client + orchestration (`RedsysUtility`) with retries/backoff.
+- Utility added: async Redsys client + orchestration (``RedsysUtility``) with retries/backoff.
 - Pydantic models added for merchant params, EMV3DS, responses, and errors.
 - Redis required to persist short-lived **CRES** and **threeDSCompInd** flags.
